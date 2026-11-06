@@ -5,3 +5,10 @@ _test-*.html
 chk*.png
 t-*.png
 shot-test.png
+
+# 版权素材：仅本地保留，不推公开仓库
+assets/
+
+# 含版权画面的截图，保持本地
+shot-intro.png
+shot-landing.png
