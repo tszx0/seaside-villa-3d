@@ -1,0 +1,7 @@
+# 本地预览脚本
+*.cmd
+# 临时/测试产物
+_test-*.html
+chk*.png
+t-*.png
+shot-test.png
