@@ -1,0 +1,1004 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>海景别墅 · 单层版本（v2）</title>
+<style>
+  :root{
+    --ink:#0d1418; --paper:#f7f4ee; --line:rgba(255,255,255,.16);
+    --glass:rgba(14,20,26,.72); --accent:#c8a06a; --sea:#1d6f7a;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;overflow:hidden;background:#0b1418;color:var(--paper);
+    font-family:"PingFang SC","Microsoft YaHei","Helvetica Neue",Arial,sans-serif}
+  canvas{display:block;position:fixed;inset:0}
+  .panel{
+    position:fixed;background:var(--glass);backdrop-filter:blur(14px);
+    border:1px solid var(--line);border-radius:16px;z-index:10;
+    box-shadow:0 18px 50px rgba(0,0,0,.45)
+  }
+  #left{left:20px;top:20px;width:286px;padding:18px 18px 14px}
+  #left h1{margin:0 0 2px;font-size:17px;letter-spacing:.12em;font-weight:600}
+  #left .sub{font-size:11px;color:#9fb1b8;letter-spacing:.18em;text-transform:uppercase}
+  .stats{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:14px 0 12px}
+  .stat{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:8px 10px}
+  .stat b{display:block;font-size:16px;color:#fff;font-variant-numeric:tabular-nums}
+  .stat span{font-size:10px;color:#93a6ad;letter-spacing:.06em}
+  .sechead{font-size:10px;letter-spacing:.2em;color:#8fa2a9;margin:12px 0 6px}
+  .rooms{display:flex;flex-direction:column;gap:4px;max-height:270px;overflow:auto;padding-right:2px}
+  .room{
+    display:flex;justify-content:space-between;align-items:center;gap:8px;
+    padding:8px 10px;border-radius:9px;border:1px solid transparent;cursor:pointer;
+    font-size:12.5px;color:#dbe6e9;background:rgba(255,255,255,.03);transition:.16s
+  }
+  .room:hover{background:rgba(200,160,106,.14);border-color:rgba(200,160,106,.35)}
+  .room.on{background:rgba(200,160,106,.2);border-color:var(--accent);color:#fff}
+  .room i{font-style:normal;font-size:10px;color:#8fa2a9}
+  .toggles{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
+  button.t{
+    flex:1;min-width:78px;background:rgba(255,255,255,.06);color:#cfe0e4;border:1px solid var(--line);
+    border-radius:9px;padding:7px 6px;font-size:11px;cursor:pointer;transition:.16s;letter-spacing:.04em
+  }
+  button.t:hover{background:rgba(255,255,255,.12)}
+  button.t.on{background:rgba(200,160,106,.22);border-color:var(--accent);color:#fff}
+  #right{right:20px;top:20px;width:280px;padding:16px 16px 14px;display:none}
+  #right.show{display:block}
+  #right h2{margin:0 0 2px;font-size:15px;letter-spacing:.06em}
+  #right .meta{font-size:11px;color:#9fb1b8;margin-bottom:10px}
+  .kv{display:flex;justify-content:space-between;font-size:12px;padding:5px 0;border-bottom:1px dashed rgba(255,255,255,.1)}
+  .kv span:last-child{color:#fff;font-variant-numeric:tabular-nums}
+  #tip{
+    position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:10;
+    font-size:11.5px;color:#a9bcc2;background:rgba(10,16,20,.7);border:1px solid var(--line);
+    padding:8px 16px;border-radius:99px;letter-spacing:.06em;backdrop-filter:blur(10px)
+  }
+  #loading{position:fixed;inset:0;z-index:50;display:grid;place-items:center;background:#0b1418;
+    transition:opacity .6s;font-size:12px;letter-spacing:.24em;color:#8fa2a9}
+  #loading.hide{opacity:0;pointer-events:none}
+  .dot{width:6px;height:6px;background:var(--accent);border-radius:50%;display:inline-block;margin-left:8px;
+    animation:p 1s infinite alternate}
+  @keyframes p{from{opacity:.2}to{opacity:1}}
+  ::-webkit-scrollbar{width:6px}
+  ::-webkit-scrollbar-thumb{background:rgba(255,255,255,.16);border-radius:3px}
+</style>
+</head>
+<body>
+<canvas id="scene"></canvas>
+
+<div id="left" class="panel">
+  <h1>海 景 别 墅</h1>
+  <div class="sub">Seaside Villa · 3,000 m²</div>
+  <div class="stats">
+    <div class="stat"><b>3,012</b><span>建筑面积 m²</span></div>
+    <div class="stat"><b>6</b><span>海景卧室套房</span></div>
+    <div class="stat"><b>25 m</b><span>无边际泳池</span></div>
+    <div class="stat"><b>1:1</b><span>米制模型</span></div>
+  </div>
+  <div class="sechead">房 间 导 览</div>
+  <div style="font-size:10px;color:#7f939a;margin:-2px 0 8px">※ 三维为方案示意，面积按设计任务书标注</div>
+  <div class="rooms" id="rooms"></div>
+  <div class="toggles">
+    <button class="t on" id="btnRoof">隐藏屋顶</button>
+    <button class="t" id="btnLabels">房间标签</button>
+    <button class="t" id="btnPlan">俯瞰总览</button>
+  </div>
+</div>
+
+<div id="right" class="panel">
+  <h2 id="rName">—</h2>
+  <div class="meta" id="rMeta">—</div>
+  <div id="rKv"></div>
+</div>
+
+<div id="tip">左键拖拽旋转 · 滚轮缩放 · 右键平移 · 数字键 1–8 切换视角</div>
+<div id="loading">正在构建三维场景<span class="dot"></span></div>
+
+<script src="three.min.js"></script>
+<script>
+/* ============================================================
+   海景别墅 3D 方案 · 单文件演示
+   全部几何体由 Three.js 程序化生成，无外部模型/贴图依赖
+   ============================================================ */
+const T = THREE;
+const canvas = document.getElementById('scene');
+const renderer = new T.WebGLRenderer({canvas, antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = T.PCFSoftShadowMap;
+renderer.toneMapping = T.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.02;
+renderer.outputColorSpace = T.SRGBColorSpace;
+
+const scene = new T.Scene();
+scene.fog = new T.Fog(0xbdd6dc, 180, 620);
+
+const camera = new T.PerspectiveCamera(46, innerWidth/innerHeight, 0.1, 3000);
+
+/* ---------- 天空 ---------- */
+const skyGeo = new T.SphereGeometry(1400, 32, 20);
+const skyMat = new T.ShaderMaterial({
+  side: T.BackSide,
+  uniforms:{ top:{value:new T.Color(0x2f6fa8)}, mid:{value:new T.Color(0x8fc4d8)}, bot:{value:new T.Color(0xf3e7d3)} },
+  vertexShader:`varying vec3 vP; void main(){ vP = position; gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.0);} `,
+  fragmentShader:`
+    varying vec3 vP; uniform vec3 top, mid, bot;
+    void main(){
+      float h = normalize(vP).y;
+      vec3 c = mix(bot, mid, smoothstep(-0.05, 0.28, h));
+      c = mix(c, top, smoothstep(0.25, 0.85, h));
+      gl_FragColor = vec4(c, 1.0);
+    }`
+});
+scene.add(new T.Mesh(skyGeo, skyMat));
+
+/* ---------- 光照 ---------- */
+const sunDir = new T.Vector3(-0.45, 0.62, -0.64).normalize();
+const sun = new T.DirectionalLight(0xfff1d8, 3.1);
+sun.position.copy(sunDir).multiplyScalar(160);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.near = 10; sun.shadow.camera.far = 400;
+sun.shadow.camera.left = -120; sun.shadow.camera.right = 120;
+sun.shadow.camera.top = 120; sun.shadow.camera.bottom = -120;
+sun.shadow.bias = -0.0006;
+scene.add(sun);
+const hemi = new T.HemisphereLight(0xcfe6ff, 0x6b5b46, 0.85); scene.add(hemi);
+const fill = new T.DirectionalLight(0xa8d8ff, 0.35); fill.position.set(60, 40, 90); scene.add(fill);
+
+/* ---------- 海面 ---------- */
+const seaUniforms = {
+  uTime:{value:0},
+  uSun:{value:sunDir.clone()},
+  uDeep:{value:new T.Color(0x0d3f52)},
+  uShallow:{value:new T.Color(0x2b8ea0)},
+  uHorizon:{value:new T.Color(0xbdd6dc)}
+};
+const seaMat = new T.ShaderMaterial({
+  uniforms: seaUniforms,
+  vertexShader:`
+    uniform float uTime; varying vec3 vW; varying vec3 vN; varying float vH;
+    float h(vec2 p){
+      return 0.42*sin(p.x*0.055 + uTime*0.9)
+           + 0.28*sin(p.y*0.078 - uTime*1.15)
+           + 0.16*sin((p.x+p.y)*0.16 + uTime*1.7)
+           + 0.09*sin((p.x*0.6-p.y)*0.31 - uTime*2.2);
+    }
+    void main(){
+      vec3 p = position;
+      float H = h(p.xy);
+      vec2 d = vec2(0.055*0.42*cos(p.x*0.055+uTime*0.9), 0.078*0.28*cos(p.y*0.078-uTime*1.15));
+      vN = normalize(vec3(-d.x, 1.0, -d.y));
+      vH = H;
+      p.z += H;
+      vW = (modelMatrix*vec4(p,1.0)).xyz;
+      gl_Position = projectionMatrix*modelViewMatrix*vec4(p,1.0);
+    }`,
+  fragmentShader:`
+    uniform vec3 uSun, uDeep, uShallow, uHorizon; varying vec3 vW; varying vec3 vN; varying float vH;
+    void main(){
+      vec3 V = normalize(cameraPosition - vW);
+      vec3 N = normalize(vN);
+      float fres = pow(1.0 - max(dot(N, V), 0.0), 3.0);
+      vec3 col = mix(uDeep, uShallow, smoothstep(-0.5, 0.6, vH));
+      vec3 R = reflect(-uSun, N);
+      float spec = pow(max(dot(R, V), 0.0), 120.0) * 3.2;
+      col += uHorizon * fres * 0.55;
+      col += vec3(1.0,0.93,0.78) * spec;
+      float dist = length(cameraPosition.xz - vW.xz);
+      col = mix(col, uHorizon, smoothstep(320.0, 900.0, dist));
+      gl_FragColor = vec4(col, 1.0);
+    }`
+});
+const sea = new T.Mesh(new T.PlaneGeometry(2400, 2400, 160, 160), seaMat);
+sea.rotation.x = -Math.PI/2;
+sea.position.y = 0;
+scene.add(sea);
+
+/* ---------- 材质库 ---------- */
+const M = {
+  stone:   new T.MeshStandardMaterial({color:0xd6c8b2, roughness:.82, metalness:.05}),
+  stoneDk: new T.MeshStandardMaterial({color:0xa89a86, roughness:.9}),
+  rock:    new T.MeshStandardMaterial({color:0x6e6558, roughness:1}),
+  grass:   new T.MeshStandardMaterial({color:0x4a6b3c, roughness:.95}),
+  wood:    new T.MeshStandardMaterial({color:0x8a5a33, roughness:.55, metalness:.05}),
+  woodLt:  new T.MeshStandardMaterial({color:0xc9a06d, roughness:.6}),
+  floorWd: new T.MeshStandardMaterial({color:0xa87848, roughness:.62}),
+  fabric:  new T.MeshStandardMaterial({color:0xece5da, roughness:.95}),
+  linen:   new T.MeshStandardMaterial({color:0xfaf7f1, roughness:.92}),
+  dark:    new T.MeshStandardMaterial({color:0x24201c, roughness:.7}),
+  metal:   new T.MeshStandardMaterial({color:0x3d4147, roughness:.35, metalness:.85}),
+  brass:   new T.MeshStandardMaterial({color:0xc8a06a, roughness:.3, metalness:.9}),
+  glass:   new T.MeshPhysicalMaterial({color:0xdff1f6, roughness:.06, metalness:0, transparent:true,
+             opacity:.16, side:T.DoubleSide, depthWrite:false}),
+  water:   new T.MeshPhysicalMaterial({color:0x2fa3b8, roughness:.08, metalness:.1, transparent:true, opacity:.82}),
+  marble:  new T.MeshStandardMaterial({color:0xf1ece4, roughness:.25, metalness:.06}),
+};
+const ACCENTS = [0x2f7f8a, 0xb5895f, 0xa8564b, 0x33475f, 0x6f7d54, 0x8a5f76];
+
+/* ---------- 程序化贴图（Canvas 生成，无外部资源） ---------- */
+function makeTex(w, h, draw, rx, ry){
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  draw(c.getContext('2d'), w, h);
+  const t = new T.CanvasTexture(c);
+  t.wrapS = t.wrapT = T.RepeatWrapping;
+  t.repeat.set(rx || 1, ry || 1);
+  t.colorSpace = T.SRGBColorSpace;
+  t.anisotropy = 8;
+  return t;
+}
+const TEX = {
+  wood: makeTex(512, 512, (g,w,h)=>{
+    g.fillStyle = '#a97a4b'; g.fillRect(0,0,w,h);
+    for(let i=0;i<160;i++){
+      const y = Math.random()*h, a = 0.03 + Math.random()*0.07;
+      g.strokeStyle = `rgba(60,34,16,${a})`; g.lineWidth = 0.6 + Math.random()*1.6;
+      g.beginPath(); g.moveTo(0, y);
+      for(let x=0;x<=w;x+=32) g.lineTo(x, y + Math.sin(x*0.02 + i)*3 + (Math.random()-0.5)*2);
+      g.stroke();
+    }
+    // 板缝
+    g.strokeStyle = 'rgba(40,24,12,.55)'; g.lineWidth = 2.5;
+    for(let i=1;i<4;i++){ g.beginPath(); g.moveTo(0, i*h/4); g.lineTo(w, i*h/4); g.stroke(); }
+    for(let i=0;i<4;i++){
+      const off = (i%2)*w/2;
+      g.beginPath(); g.moveTo(off, i*h/4); g.lineTo(off, (i+1)*h/4); g.stroke();
+    }
+  }, 2, 2),
+  marble: makeTex(512, 512, (g,w,h)=>{
+    g.fillStyle = '#f2ede4'; g.fillRect(0,0,w,h);
+    for(let i=0;i<26;i++){
+      g.strokeStyle = `rgba(150,140,125,${0.05+Math.random()*0.12})`;
+      g.lineWidth = 0.6 + Math.random()*2.2;
+      g.beginPath();
+      let x = Math.random()*w, y = 0; g.moveTo(x,y);
+      while(y < h){ x += (Math.random()-0.5)*40; y += 18 + Math.random()*26; g.lineTo(x,y); }
+      g.stroke();
+    }
+    g.strokeStyle = 'rgba(120,110,96,.35)'; g.lineWidth = 3;
+    g.strokeRect(0,0,w,h);
+  }, 3, 3),
+  rug: makeTex(256, 256, (g,w,h)=>{
+    g.fillStyle = '#e8ddc9'; g.fillRect(0,0,w,h);
+    g.strokeStyle = 'rgba(150,130,100,.5)'; g.lineWidth = 8; g.strokeRect(10,10,w-20,h-20);
+    g.strokeStyle = 'rgba(150,130,100,.28)'; g.lineWidth = 2;
+    for(let i=24;i<w-20;i+=14){
+      g.beginPath(); g.moveTo(i, 26); g.lineTo(i, h-26); g.stroke();
+    }
+  }, 1, 1),
+  fabric: makeTex(128, 128, (g,w,h)=>{
+    g.fillStyle = '#f2ece2'; g.fillRect(0,0,w,h);
+    for(let i=0;i<w;i+=2){
+      g.fillStyle = i%4 ? 'rgba(0,0,0,.035)' : 'rgba(255,255,255,.05)';
+      g.fillRect(i,0,1,h);
+    }
+  }, 6, 6),
+};
+M.floorWd.map = TEX.wood; M.floorWd.color.set(0xffffff); M.floorWd.roughness = .55; M.floorWd.needsUpdate = true;
+M.marble.map  = TEX.marble; M.marble.color.set(0xffffff); M.marble.needsUpdate = true;
+M.fabric.map  = TEX.fabric; M.fabric.color.set(0xf0e9dd); M.fabric.needsUpdate = true;
+M.linen.map   = TEX.fabric; M.linen.needsUpdate = true;
+const roomLights = [];
+
+/* ---------- 通用几何 ---------- */
+function box(w,h,d,mat,x,y,z,parent,cast=true){
+  const m = new T.Mesh(new T.BoxGeometry(w,h,d), mat);
+  m.position.set(x,y,z); m.castShadow = cast; m.receiveShadow = true;
+  (parent||scene).add(m); return m;
+}
+function cyl(rt,rb,h,mat,x,y,z,parent,seg=24){
+  const m = new T.Mesh(new T.CylinderGeometry(rt,rb,h,seg), mat);
+  m.position.set(x,y,z); m.castShadow = true; m.receiveShadow = true;
+  (parent||scene).add(m); return m;
+}
+function plane(w,d,mat,x,y,z,parent){
+  const m = new T.Mesh(new T.PlaneGeometry(w,d), mat);
+  m.rotation.x = -Math.PI/2; m.position.set(x,y,z); m.receiveShadow = true;
+  (parent||scene).add(m); return m;
+}
+
+/* ---------- 场地：礁岩 + 草坪 ---------- */
+const FL = 3.4;                       // 首层地坪标高
+const island = new T.Group(); scene.add(island);
+box(116, 11, 78, M.rock, 0, FL-5.7, 6, island);
+box(112, 0.5, 74, M.grass, 0, FL-0.30, 6, island);
+// 海岸礁石
+for(let i=0;i<26;i++){
+  const a = (i/26)*Math.PI*2;
+  const r = 60 + Math.random()*16;
+  const s = 2 + Math.random()*5;
+  const rock = new T.Mesh(new T.DodecahedronGeometry(s, 0), M.rock);
+  rock.position.set(Math.cos(a)*r, FL-4.2 + Math.random()*2.2, Math.sin(a)*r*0.62 + 6);
+  rock.rotation.set(Math.random(), Math.random(), Math.random());
+  rock.castShadow = true; rock.receiveShadow = true;
+  island.add(rock);
+}
+
+/* ---------- 别墅主体 ---------- */
+const villa = new T.Group(); scene.add(villa);
+const roofs = [];
+
+const BED_W = 9, BED_D = 8, BED_N = 6, BED_Z = 6.0;
+const wingW = BED_W*BED_N;
+
+// 基座 + 楼板
+box(64, 0.7, 34, M.stone, 0, FL-0.35, 2, villa);
+// 卧室翼不另做厚板，房间自带木地板（避免遮住地面材质）
+box(34, 0.3, 20, M.marble, -6, FL+0.15, -4, villa);
+
+// 卧室翼：6 间套房，朝海一侧整面玻璃
+const bedRooms = [];
+for(let i=0;i<BED_N;i++){
+  const cx = (i - (BED_N-1)/2) * BED_W;
+  const g = new T.Group(); g.position.set(cx, FL, BED_Z); villa.add(g);
+  const accent = new T.Color(ACCENTS[i%ACCENTS.length]);
+
+  // 地板
+  plane(BED_W, BED_D, M.floorWd, 0, 0.02, 0, g);
+  // 后墙 + 两侧隔墙（高 3.6）
+  box(BED_W, 3.7, 0.22, new T.MeshStandardMaterial({color:0xe9e2d5, roughness:.95}), 0, 1.85, -BED_D/2, g);
+  box(0.22, 3.7, BED_D, M.stone, -BED_W/2, 1.85, 0, g);
+  // 顶棚
+  roofs.push(box(BED_W, 0.22, BED_D, M.stone, 0, 3.72, 0, g));
+
+  // 落地窗（朝海 +Z）
+  const glass = box(BED_W-0.4, 3.4, 0.08, M.glass, 0, 1.75, BED_D/2-0.05, g, false);
+  glass.castShadow = false;
+  // 窗框
+  box(BED_W-0.4, 0.12, 0.14, M.metal, 0, 3.46, BED_D/2-0.05, g);
+  box(BED_W-0.4, 0.12, 0.14, M.metal, 0, 0.08, BED_D/2-0.05, g);
+  for(let k=-1;k<=1;k++) box(0.1, 3.4, 0.14, M.metal, k*(BED_W/3), 1.75, BED_D/2-0.05, g);
+
+  // ---- 床（1.8×2.1）----
+  const bedZ = -0.4;
+  box(2.1, 0.36, 2.4, M.woodLt, 0, 0.18, bedZ, g);                   // 床架
+  box(2.0, 0.34, 2.3, M.linen, 0, 0.5, bedZ, g);                     // 床垫
+  box(2.02, 0.16, 1.35, accent, 0, 0.72, bedZ+0.44, g);              // 床尾毯
+  box(2.14, 0.26, 2.05, M.linen, 0, 0.74, bedZ+0.12, g);              // 被子覆盖
+  box(2.18, 0.1, 1.5, accent, 0, 0.9, bedZ+0.42, g);                // 床尾毯
+  box(2.5, 1.15, 0.18, M.wood, 0, 1.0, bedZ-1.32, g);                // 床头板
+  // 枕头
+  [[-0.5,0],[0.5,0]].forEach(([px])=>{
+    const p = box(0.95, 0.26, 0.58, M.linen, px, 0.8, bedZ-0.95, g);
+    p.rotation.x = -0.12;
+  });
+  // 靠枕
+  box(1.3, 0.34, 0.18, accent, 0, 0.86, bedZ-1.12, g);
+
+  // ---- 床头柜 + 台灯 ----
+  [-1.55, 1.55].forEach(px=>{
+    box(0.6, 0.55, 0.5, M.wood, px, 0.28, bedZ-1.0, g);
+    cyl(0.16,0.2,0.06, M.brass, px, 0.6, bedZ-1.0, g);
+    cyl(0.05,0.05,0.22, M.brass, px, 0.71, bedZ-1.0, g);
+    const shade = new T.Mesh(new T.CylinderGeometry(0.17,0.22,0.24,20,1,true),
+      new T.MeshStandardMaterial({color:0xfff0d2, emissive:0xffcf8a, emissiveIntensity:1.5,
+        roughness:.9, side:T.DoubleSide}));
+    shade.position.set(px, 0.94, bedZ-1.0); g.add(shade);
+  });
+
+  // ---- 衣柜 ----
+  box(2.6, 2.7, 0.62, M.wood, -BED_W/2+1.55, 1.35, -2.9, g);
+  box(1.28, 2.56, 0.04, M.woodLt, -BED_W/2+1.55-0.66, 1.35, -2.58, g);
+  box(1.28, 2.56, 0.04, M.woodLt, -BED_W/2+1.55+0.66, 1.35, -2.58, g);
+
+  // ---- 床尾长凳 ----
+  box(1.7, 0.34, 0.5, M.fabric, 0, 0.2, bedZ+1.55, g);
+  [-0.72,0.72].forEach(px=> cyl(0.04,0.04,0.2,M.metal, px, 0.1, bedZ+1.55, g, 10));
+
+  // ---- 地毯（带织纹）----
+  plane(3.6, 3.2, new T.MeshStandardMaterial({map:TEX.rug, roughness:1}), 0, 0.03, bedZ+0.25, g);
+
+  // ---- 靠窗休闲椅 + 边几 ----
+  const chZ = BED_D/2 - 1.6;
+  [[-3.0],[3.0]].forEach(([px])=>{
+    box(0.85, 0.18, 0.85, M.fabric, px, 0.34, chZ, g);
+    box(0.85, 0.7, 0.16, M.fabric, px, 0.6, chZ-0.36, g);
+    [-0.3,0.3].forEach(dx=> [-0.3,0.3].forEach(dz=> cyl(0.03,0.03,0.26,M.metal, px+dx,0.14,chZ+dz,g,8)));
+    cyl(0.05, 0.05, 0.04, M.dark, px, 0.44, chZ, g, 8);
+  });
+  cyl(0.28,0.28,0.5, M.woodLt, 0, 0.25, chZ, g, 18);
+  cyl(0.34,0.34,0.05, M.marble, 0, 0.53, chZ, g, 18);
+
+  // ---- 书桌 + 单椅（靠右墙）----
+  box(1.7, 0.07, 0.68, M.woodLt, BED_W/2-1.5, 0.74, 0.9, g);
+  [-0.72,0.72].forEach(dx=>[-0.26,0.26].forEach(dz=> cyl(0.035,0.035,0.72,M.metal, BED_W/2-1.5+dx,0.37,0.9+dz,g,8)));
+  box(0.5, 0.06, 0.5, M.fabric, BED_W/2-1.5, 0.46, 1.75, g);
+  box(0.5, 0.55, 0.08, M.fabric, BED_W/2-1.5, 0.72, 1.96, g);
+  cyl(0.05,0.05,0.44,M.metal, BED_W/2-1.5, 0.22, 1.75, g, 10);
+  // 桌面物件：书 + 台灯
+  box(0.34,0.06,0.24, new T.MeshStandardMaterial({color:accent, roughness:.9}), BED_W/2-1.95,0.81,0.9, g);
+  box(0.3,0.05,0.22, M.linen, BED_W/2-1.95,0.87,0.94, g);
+  cyl(0.09,0.12,0.03, M.brass, BED_W/2-1.05,0.79,0.68, g, 14);
+  cyl(0.02,0.02,0.3, M.brass, BED_W/2-1.05,0.95,0.68, g, 8);
+
+  // ---- 电视 + 矮柜（靠左隔墙）----
+  box(0.45, 0.5, 1.9, M.wood, -BED_W/2+0.55, 0.25, 1.0, g);
+  box(0.06, 0.95, 1.6, M.dark, -BED_W/2+0.30, 1.75, 1.0, g);
+  box(0.05, 0.99, 1.66, M.metal, -BED_W/2+0.34, 1.75, 1.0, g);
+
+  // ---- 独立卫浴（玻璃隔断 + 台盆 + 淋浴）----
+  const bw = 2.2, bd = 2.6, bx = BED_W/2 - bw/2 - 0.1, bz = -BED_D/2 + bd/2 + 0.1;
+  plane(bw, bd, M.marble, bx, 0.04, bz, g);
+  box(bw, 2.0, 0.06, M.glass, bx, 1.0, bz + bd/2, g, false);           // 玻璃隔断
+  box(0.06, 2.0, bd, M.glass, bx - bw/2, 1.0, bz, g, false);
+  box(0.1, 2.0, 0.1, M.metal, bx - bw/2, 1.0, bz + bd/2, g);            // 立柱
+  // 台盆柜
+  box(1.1, 0.8, 0.45, M.wood, bx + 0.5, 0.4, bz - 0.55, g);
+  box(1.2, 0.06, 0.5, M.marble, bx + 0.5, 0.83, bz - 0.55, g);
+  cyl(0.17,0.14,0.12, M.marble, bx + 0.5, 0.92, bz - 0.55, g, 18);
+  cyl(0.02,0.02,0.28, M.brass, bx + 0.5, 1.05, bz - 0.35, g, 8);
+  box(0.9, 1.0, 0.04, new T.MeshStandardMaterial({color:0xdfe9ec, roughness:.1, metalness:.5}),
+      bx + 0.5, 1.6, bz - bd/2 + 0.04, g);                              // 镜子
+  // 淋浴
+  cyl(0.02,0.02,1.0, M.metal, bx - 0.55, 1.9, bz + 0.6, g, 8);
+  cyl(0.14,0.14,0.03, M.metal, bx - 0.55, 2.38, bz + 0.6, g, 14);
+  box(0.04, 2.0, 1.0, M.glass, bx - 0.55, 1.0, bz + 1.0, g, false);
+  // 毛巾杆
+  cyl(0.02,0.02,0.9, M.brass, bx + 1.0, 1.3, bz + 0.9, g, 8).rotation.z = Math.PI/2;
+  box(0.36,0.5,0.05, M.linen, bx + 1.0, 1.05, bz + 0.9, g);
+
+  // ---- 窗帘 ----
+  [-1, 1].forEach(s=>{
+    const c = box(0.55, 3.2, 0.12, M.fabric, s*(BED_W/2-0.9), 1.66, BED_D/2-0.35, g);
+    c.castShadow = true;
+  });
+  box(BED_W-0.6, 0.08, 0.08, M.metal, 0, 3.32, BED_D/2-0.35, g);
+
+  // ---- 绿植 ----
+  const potX = -BED_W/2+0.9, potZ = BED_D/2-1.0;
+  cyl(0.26,0.2,0.42, new T.MeshStandardMaterial({color:0x8c8377, roughness:.95}), potX, 0.21, potZ, g, 16);
+  [[0,0.55,0,0.42],[0.2,0.72,0.1,0.3],[-0.18,0.68,-0.12,0.26],[0.05,0.9,-0.05,0.2]].forEach(([dx,dy,dz,r])=>{
+    const s = new T.Mesh(new T.SphereGeometry(r, 10, 8),
+      new T.MeshStandardMaterial({color:0x2f6b3a, roughness:.9}));
+    s.position.set(potX+dx, dy, potZ+dz); s.scale.y = 0.8; s.castShadow = true; g.add(s);
+  });
+
+  // ---- 天花板灯槽 ----
+  const cove = new T.MeshStandardMaterial({color:0xfff2d8, emissive:0xffd9a0, emissiveIntensity:1.6});
+  box(BED_W-0.6, 0.05, 0.1, cove, 0, 3.58, -BED_D/2+0.35, g, false);
+  box(BED_W-0.6, 0.05, 0.1, cove, 0, 3.58, BED_D/2-0.35, g, false);
+  box(0.1, 0.05, BED_D-0.7, cove, -BED_W/2+0.35, 3.58, 0, g, false);
+  box(0.1, 0.05, BED_D-0.7, cove, BED_W/2-0.35, 3.58, 0, g, false);
+
+  // ---- 墙面艺术 ----
+  box(1.68, 1.18, 0.04, M.brass, 0, 2.05, -BED_D/2+0.10, g);
+  box(1.46, 0.96, 0.03, new T.MeshStandardMaterial({color:accent, roughness:.75}),
+      0, 2.05, -BED_D/2+0.14, g);
+
+  // ---- 顶灯 ----
+  for(let k=-1;k<=1;k++){
+    const d = new T.Mesh(new T.CircleGeometry(0.16, 16),
+      new T.MeshStandardMaterial({color:0xfff4dd, emissive:0xffe2b0, emissiveIntensity:2.2, side:T.DoubleSide}));
+    d.rotation.x = Math.PI/2; d.position.set(k*2.6, 3.6, 0); g.add(d);
+  }
+
+  // 室内暖光（每间一盏，无阴影，成本低）
+  const warm = new T.PointLight(0xffd9a8, 2.4, 10, 2);
+  warm.position.set(0, 3.05, 1.0); g.add(warm); roomLights.push(warm);
+
+  bedRooms.push({i, cx, name:`卧室 0${i+1}`, accent, group:g, area: 72});
+}
+
+/* ---------- 海景卫浴（独立浴缸 + 整面玻璃） ---------- */
+const BATH_X = -31, BATH_Z = 6, BATH_W = 7, BATH_D = 8;
+const bath = new T.Group(); bath.position.set(BATH_X, FL, BATH_Z); villa.add(bath);
+plane(BATH_W, BATH_D, M.marble, 0, 0.02, 0, bath);
+box(BATH_W, 3.6, 0.22, M.stone, 0, 1.8, -BATH_D/2, bath);            // 后墙
+box(0.22, 3.6, BATH_D, M.stone, -BATH_W/2, 1.8, 0, bath);            // 左墙
+box(0.22, 3.6, BATH_D, M.stone, BATH_W/2, 1.8, 0, bath);             // 右墙
+box(BATH_W-0.2, 3.3, 0.08, M.glass, 0, 1.65, BATH_D/2-0.05, bath, false); // 海景玻璃
+for(let k=-1;k<=1;k++) box(0.1, 3.3, 0.14, M.metal, k*(BATH_W/3), 1.65, BATH_D/2-0.05, bath);
+roofs.push(box(BATH_W+0.4, 0.28, BATH_D+0.4, M.stone, 0, 3.74, 0, bath));
+// 天花板灯槽
+const bathCove = new T.MeshStandardMaterial({color:0xfff2d8, emissive:0xffd9a0, emissiveIntensity:1.8});
+box(BATH_W-0.6, 0.05, 0.1, bathCove, 0, 3.56, -BATH_D/2+0.35, bath, false);
+box(BATH_W-0.6, 0.05, 0.1, bathCove, 0, 3.56, BATH_D/2-0.6, bath, false);
+
+// 独立浴缸（椭圆石质）
+const tubY = 0.34;
+const tub = new T.Mesh(new T.CylinderGeometry(0.62, 0.56, 0.6, 36), M.marble);
+tub.scale.set(1.55, 1, 0.9); tub.position.set(0.2, tubY-0.04, 2.0); tub.castShadow = true; tub.receiveShadow = true; bath.add(tub);
+const tubInner = new T.Mesh(new T.CylinderGeometry(0.5, 0.46, 0.5, 36),
+  new T.MeshStandardMaterial({color:0xfbfaf6, roughness:.18, metalness:.02}));
+tubInner.scale.set(1.5, 1, 0.86); tubInner.position.set(0.2, tubY+0.02, 2.0); bath.add(tubInner);
+const tubWater = new T.Mesh(new T.CircleGeometry(0.46, 36), M.water);
+tubWater.rotation.x = -Math.PI/2; tubWater.scale.set(1.48, 0.84, 1);
+tubWater.position.set(0.2, tubY+0.20, 2.0); bath.add(tubWater);
+// 落地龙头
+cyl(0.05,0.05,1.15, M.brass, -1.35, 0.58, 2.35, bath, 10);
+cyl(0.04,0.04,0.42, M.brass, -1.2, 1.12, 2.2, bath, 10).rotation.z = Math.PI/2.4;
+
+// 淋浴：玻璃屏 + 顶喷 + 花洒
+box(0.05, 2.05, 1.5, M.glass, -2.55, 1.02, -1.35, bath, false);
+cyl(0.025,0.025,1.0, M.metal, -3.05, 1.95, -1.35, bath, 8);
+cyl(0.16,0.16,0.03, M.metal, -2.85, 2.42, -1.35, bath, 16);
+cyl(0.02,0.02,0.9, M.metal, -3.1, 1.35, -0.5, bath, 8).rotation.x = Math.PI/2;
+
+// 台盆 + 镜子（左墙）
+box(1.5, 0.78, 0.5, M.wood, -3.05, 0.39, -3.0, bath);
+box(1.6, 0.06, 0.55, M.marble, -3.05, 0.81, -3.0, bath);
+cyl(0.19,0.16,0.12, M.marble, -3.05, 0.9, -3.0, bath, 20);
+cyl(0.02,0.02,0.3, M.brass, -3.05, 1.02, -2.82, bath, 8);
+box(1.3, 1.1, 0.04, new T.MeshStandardMaterial({color:0xdfe9ec, roughness:.08, metalness:.55}),
+    -3.4, 1.75, -3.0, bath);
+// 毛巾梯
+[[-0.45],[0.45]].forEach(([dz])=>{
+  cyl(0.02,0.02,1.6, M.brass, 3.1, 0.8, -2.6+dz, bath, 8);
+});
+[0.5,1.0,1.45].forEach(y=>{
+  cyl(0.018,0.018,0.95, M.brass, 3.1, y, -2.6, bath, 8).rotation.x = Math.PI/2;
+});
+box(0.5,0.62,0.06, M.linen, 3.1, 1.05, -2.6, bath);
+// 绿植
+cyl(0.3,0.24,0.46, new T.MeshStandardMaterial({color:0x8c8377, roughness:.95}), 2.5, 0.23, 3.1, bath, 16);
+[[0,0.72,0,0.46],[0.22,0.9,0.1,0.3],[-0.2,0.86,-0.12,0.26]].forEach(([dx,dy,dz,r])=>{
+  const s = new T.Mesh(new T.SphereGeometry(r, 10, 8), new T.MeshStandardMaterial({color:0x2f6b3a, roughness:.9}));
+  s.position.set(2.5+dx, dy, 3.1+dz); s.scale.y = 0.8; s.castShadow = true; bath.add(s);
+});
+const bathLight = new T.PointLight(0xffd9a8, 2.6, 10, 2);
+bathLight.position.set(0, 3.0, 0.5); bath.add(bathLight); roomLights.push(bathLight);
+
+/* ---------- 客厅 / 餐厅（挑高 7m） ---------- */
+const living = new T.Group(); living.position.set(-6, FL, -10); villa.add(living);
+plane(34, 18, M.marble, 0, 0.02, 0, living);
+box(34, 7.2, 0.3, M.stone, 0, 3.6, -8.9, living);           // 后墙
+box(0.3, 7.2, 18, M.stone, -16.8, 3.6, 0, living);          // 左墙
+box(0.3, 7.2, 18, M.stone, 16.8, 3.6, 0, living);           // 右墙
+roofs.push(box(34, 0.3, 18, M.stone, 0, 7.2, 0, living));   // 客厅屋顶（可隐藏）
+// 朝海整面玻璃
+box(33.6, 6.9, 0.1, M.glass, 0, 3.45, 8.9, living, false);
+for(let k=-2;k<=2;k++) box(0.12, 6.9, 0.16, M.metal, k*8, 3.45, 8.9, living);
+
+// 沙发组
+const sofa = new T.Group(); sofa.position.set(0, 0, -2.5); living.add(sofa);
+box(7.2, 0.45, 2.6, M.fabric, 0, 0.28, 0, sofa);
+box(7.2, 1.0, 0.35, M.fabric, 0, 0.62, -1.2, sofa);
+box(0.5, 0.7, 2.4, M.fabric, -3.5, 0.5, 0, sofa);
+box(0.5, 0.7, 2.4, M.fabric, 3.5, 0.5, 0, sofa);
+[[-2.2],[0],[2.2]].forEach(([x])=>{ box(1.9,0.22,1.9, M.linen, x, 0.55, 0.1, sofa); });
+// 茶几
+box(3.4, 0.12, 1.7, M.marble, 0, 0.42, 2.4, living);
+[-1.4,1.4].forEach(x=>[-0.6,0.6].forEach(z=> cyl(0.05,0.05,0.4,M.metal,x,0.2,2.4+z,living,8)));
+// 单椅
+[[-6,1.2,1.1],[6,1.2,-1.1]].forEach(([x,z,ry])=>{
+  const c = new T.Group(); c.position.set(x,0,z); c.rotation.y = ry; living.add(c);
+  box(1.5,0.4,1.4, M.fabric, 0,0.24,0, c);
+  box(1.5,0.95,0.2, M.fabric, 0,0.62,-0.6, c);
+});
+// 地毯
+plane(11, 8, new T.MeshStandardMaterial({map:TEX.rug, roughness:1}), 0, 0.03, 0.6, living);
+
+// 书架（左墙）
+box(0.4, 3.4, 4.6, M.wood, -16.3, 1.7, -4.2, living);
+for(let i=0;i<5;i++){
+  box(0.34, 0.05, 4.4, M.woodLt, -16.3, 0.5 + i*0.66, -4.2, living);
+  for(let k=0;k<9;k++){
+    const bh = 0.32 + Math.random()*0.14;
+    box(0.24, bh, 0.1 + Math.random()*0.1,
+        new T.MeshStandardMaterial({color:[0x8d4a3f,0x33475f,0x6f7d54,0xc8a06a,0x2f7f8a][k%5], roughness:.9}),
+        -16.3, 0.5 + i*0.66 + bh/2 + 0.03, -6.2 + k*0.44, living, false);
+  }
+}
+// 壁炉 / 电视墙（后墙）
+box(5.0, 2.6, 0.25, M.stoneDk, 0, 1.5, -8.75, living);
+box(3.6, 0.28, 0.3, new T.MeshStandardMaterial({color:0x1a1714, emissive:0xff7a2a, emissiveIntensity:1.8}), 0, 0.55, -8.62, living, false);
+box(4.2, 0.12, 0.6, M.marble, 0, 0.28, -8.5, living);
+// 落地灯
+cyl(0.16,0.16,0.05, M.metal, -5.4, 0.03, -5.2, living, 16);
+cyl(0.03,0.03,1.7, M.metal, -5.4, 0.88, -5.2, living, 8);
+const shadeL = new T.Mesh(new T.CylinderGeometry(0.3,0.24,0.34,18,1,true),
+  new T.MeshStandardMaterial({color:0xfff3da, emissive:0xffd9a0, emissiveIntensity:1.6, side:T.DoubleSide}));
+shadeL.position.set(-5.4, 1.82, -5.2); living.add(shadeL);
+// 绿植
+[[-8.2, 4.6],[8.4, 4.2]].forEach(([px,pz])=>{
+  cyl(0.32,0.26,0.5, new T.MeshStandardMaterial({color:0x8c8377, roughness:.95}), px, 0.25, pz, living, 16);
+  [[0,0.8,0,0.52],[0.26,1.0,0.1,0.36],[-0.22,0.96,-0.14,0.3]].forEach(([dx,dy,dz,r])=>{
+    const s = new T.Mesh(new T.SphereGeometry(r, 10, 8),
+      new T.MeshStandardMaterial({color:0x2f6b3a, roughness:.9}));
+    s.position.set(px+dx, dy, pz+dz); s.scale.y = 0.75; s.castShadow = true; living.add(s);
+  });
+});
+// 茶几摆件
+box(0.5,0.08,0.34, new T.MeshStandardMaterial({color:0x8d4a3f, roughness:.9}), 0.5, 0.5, 2.4, living, false);
+box(0.44,0.06,0.3, M.linen, 0.52, 0.56, 2.42, living, false);
+cyl(0.16,0.1,0.1, M.brass, -0.6, 0.5, 2.4, living, 14);
+// 餐桌
+const table = new T.Group(); table.position.set(11.5, 0, -3); living.add(table);
+box(4.6, 0.14, 1.7, M.woodLt, 0, 0.74, 0, table);
+[-2,-0.7,0.7,2].forEach(x=>[-0.6,0.6].forEach(z=>{ box(0.9,0.72,0.9, M.wood, x, 0.36, z*1.9, table); }));
+// 吊灯
+for(let k=-1;k<=1;k++){
+  cyl(0.02,0.02,2.2, M.metal, 11.5+k*1.6, 5.2, -3, living, 6);
+  const shade = new T.Mesh(new T.ConeGeometry(0.42,0.5,20,1,true),
+    new T.MeshStandardMaterial({color:0x2b2b2b, roughness:.6, side:T.DoubleSide}));
+  shade.position.set(11.5+k*1.6, 4.1, -3); living.add(shade);
+}
+
+/* ---------- 二层：主卧套间 + 露台 ---------- */
+const upper = new T.Group(); upper.position.set(-6, FL+7.5, -10); villa.add(upper);
+box(34, 0.3, 20, M.stone, 0, 0, 0, upper);                          // 楼板
+plane(33.6, 19.6, M.floorWd, 0, 0.16, 0, upper);
+// 主卧 16×12
+const master = new T.Group(); master.position.set(6.5, 0.2, 0); upper.add(master);
+box(16, 3.7, 0.22, M.stone, 0, 1.85, -6, master);
+box(0.22, 3.7, 12, M.stone, 8, 1.85, 0, master);
+roofs.push(box(16, 0.22, 12, M.stone, 0, 3.72, 0, master));
+box(15.6, 3.4, 0.08, M.glass, 0, 1.75, 5.95, master, false);
+// 主卧床
+box(2.6, 0.4, 2.9, M.woodLt, 0, 0.2, -1.4, master);
+box(2.5, 0.36, 2.8, M.linen, 0, 0.55, -1.4, master);
+box(2.52, 0.18, 1.6, new T.MeshStandardMaterial({color:ACCENTS[3], roughness:.9}), 0, 0.78, -0.6, master);
+box(3.0, 1.4, 0.2, M.wood, 0, 1.1, -2.95, master);
+[[-0.62],[0.62]].forEach(([x])=>{ const p = box(1.0,0.22,0.55, M.linen, x, 0.79, -2.6, master); p.rotation.x=-0.12; });
+// 窗边卧榻
+box(4.6, 0.42, 1.1, new T.MeshStandardMaterial({color:0xd9cdb8, roughness:.95}), 0, 0.24, 4.6, master);
+// 电视墙
+box(5.2, 2.2, 0.08, M.dark, -8+1.2, 2.0, -5.85, master);
+// 露台家具
+const deck = new T.Group(); deck.position.set(-9, 0.2, 1); upper.add(deck);
+box(3.2,0.4,0.9, M.fabric, 0,0.24,0, deck);
+box(3.2,0.5,0.2, M.fabric, 0,0.5,0.5, deck);
+[[-5.5,-3],[5.5,3]].forEach(([dx,dz])=>{
+  cyl(0.9,0.9,0.06, M.woodLt, dx,0.45,dz, deck, 24);
+  cyl(0.08,0.08,0.45, M.metal, dx,0.22,dz, deck, 10);
+});
+// 二层栏杆
+for(let x=-17;x<=17;x+=2){
+  box(0.06,1.05,0.06, M.metal, x, 0.6, 9.9, upper);
+}
+box(34,0.06,0.08, M.metal, 0, 1.12, 9.9, upper);
+
+/* ---------- 无边际泳池 + 露台 ---------- */
+const pool = new T.Group(); pool.position.set(0, FL+0.55, 22); villa.add(pool);
+box(26, 0.4, 8, M.stone, 0, -0.22, 0, pool);
+box(27, 0.12, 9, M.marble, 0, 0.02, 0, pool);
+const poolWater = new T.Mesh(new T.PlaneGeometry(24, 6), M.water);
+poolWater.rotation.x = -Math.PI/2; poolWater.position.set(0, 0.1, 0); pool.add(poolWater);
+// 池边躺椅
+for(let i=0;i<4;i++){
+  const x = -9 + i*6;
+  box(0.9,0.12,2.0, M.fabric, x, 0.55, 6.2, pool);
+  const bk = box(0.9,0.12,1.0, M.fabric, x, 0.85, 7.3, pool); bk.rotation.x = -0.5;
+  [-0.35,0.35].forEach(dx=>[-0.8,0.8].forEach(dz=> cyl(0.04,0.04,0.5,M.metal,x+dx,0.28,6.2+dz,pool,8)));
+}
+
+/* ---------- 景观：棕榈 + 木平台 ---------- */
+function palm(x, z, h, lean){
+  const g = new T.Group(); g.position.set(x, FL, z); g.rotation.z = lean||0; scene.add(g);
+  const trunk = cyl(0.16, 0.28, h, new T.MeshStandardMaterial({color:0x8b7050, roughness:.95}), 0, h/2, 0, g, 10);
+  const leafMat = new T.MeshStandardMaterial({color:0x35763f, roughness:.9, side:T.DoubleSide});
+  for(let i=0;i<8;i++){
+    const a = (i/8)*Math.PI*2 + 0.3;
+    const fg = new T.Group(); fg.rotation.y = a; g.add(fg);
+    const frond = new T.Mesh(new T.BoxGeometry(0.42 - i*0.02, 0.06, 3.1), leafMat);
+    frond.position.set(0, h - 0.1 - i*0.03, 1.55);
+    frond.rotation.x = 0.44;
+    frond.castShadow = true;
+    fg.add(frond);
+  }
+  cyl(0.55,0.2,0.5, new T.MeshStandardMaterial({color:0x6b5a3f, roughness:1}), 0, h-0.4, 0, g, 10);
+}
+[[-46,-14,7,0.1],[-38,16,6,-0.08],[40,-12,7,0.12],[48,12,6.4,-0.1],[-20,28,5.6,0.05],[22,30,5.2,-0.06]]
+  .forEach(([x,z,h,l])=>palm(x,z,h,l));
+// 木平台（别墅与泳池之间）
+plane(58, 7, new T.MeshStandardMaterial({color:0x9c7448, roughness:.7}), 0, FL+0.05, 13.5, scene);
+plane(32, 5, new T.MeshStandardMaterial({color:0x9c7448, roughness:.7}), 0, FL+0.05, 29, scene);
+// 池边小径
+plane(4, 26, new T.MeshStandardMaterial({color:0xcfc3b0, roughness:.9}), -22, FL+0.05, 8, scene);
+
+/* ---------- 屋顶（可隐藏） ---------- */
+roofs.push(box(wingW+3, 0.35, BED_D+3, M.stone, 0, FL+3.9, BED_Z, villa));
+
+
+/* ---------- 房间标签 ---------- */
+const labelGroup = new T.Group(); labelGroup.visible = false; scene.add(labelGroup);
+function makeLabel(text, sub, x, y, z){
+  const c = document.createElement('canvas'); c.width = 512; c.height = 160;
+  const g = c.getContext('2d');
+  g.fillStyle = 'rgba(12,18,22,.82)'; g.roundRect(4,4,504,152,26); g.fill();
+  g.strokeStyle = 'rgba(200,160,106,.85)'; g.lineWidth = 3; g.roundRect(4,4,504,152,26); g.stroke();
+  g.fillStyle = '#fff'; g.font = '600 54px "PingFang SC","Microsoft YaHei",sans-serif';
+  g.textAlign = 'center'; g.fillText(text, 256, 74);
+  g.fillStyle = '#c8a06a'; g.font = '400 34px "PingFang SC",sans-serif';
+  g.fillText(sub, 256, 122);
+  const tex = new T.CanvasTexture(c); tex.colorSpace = T.SRGBColorSpace;
+  const sp = new T.Sprite(new T.SpriteMaterial({map:tex, transparent:true, depthTest:false}));
+  sp.position.set(x,y,z); sp.scale.set(6,1.9,1);
+  labelGroup.add(sp);
+}
+
+/* ---------- 相机控制（自实现轨道） ---------- */
+const rig = {
+  target: new T.Vector3(0, 6, 4),
+  theta: 0.6, phi: 1.02, radius: 95,
+  tTarget: new T.Vector3(0, 6, 4), tTheta: 0.6, tPhi: 1.02, tRadius: 95,
+  drag: null, smoothing: 0.08, auto: true, fov: 46, tFov: 46
+};
+function applyRig(){
+  const r = rig.radius, p = rig.phi, t = rig.theta;
+  camera.position.set(
+    rig.target.x + r*Math.sin(p)*Math.cos(t),
+    rig.target.y + r*Math.cos(p),
+    rig.target.z + r*Math.sin(p)*Math.sin(t)
+  );
+  camera.lookAt(rig.target);
+}
+function ease(cur, tgt, k){ return cur + (tgt-cur)*k; }
+
+canvas.addEventListener('pointerdown', e=>{
+  rig.auto = false;
+  rig.drag = {x:e.clientX, y:e.clientY, btn:e.button};
+  canvas.setPointerCapture(e.pointerId);
+});
+canvas.addEventListener('pointerup', ()=>{ rig.drag = null; });
+canvas.addEventListener('pointermove', e=>{
+  if(!rig.drag) return;
+  const dx = e.clientX - rig.drag.x, dy = e.clientY - rig.drag.y;
+  rig.drag.x = e.clientX; rig.drag.y = e.clientY;
+  if(rig.drag.btn === 0){
+    rig.tTheta -= dx*0.005;
+    rig.tPhi = Math.min(Math.max(rig.tPhi - dy*0.004, 0.12), 1.52);
+  } else {
+    const f = rig.radius*0.0012;
+    const right = new T.Vector3().crossVectors(new T.Vector3(0,1,0),
+      new T.Vector3().subVectors(camera.position, rig.target)).normalize();
+    rig.tTarget.addScaledVector(right, dx*f).addScaledVector(new T.Vector3(0,1,0), -dy*f);
+  }
+});
+canvas.addEventListener('wheel', e=>{
+  e.preventDefault(); rig.auto = false;
+  rig.tRadius = Math.min(Math.max(rig.tRadius * (1 + Math.sign(e.deltaY)*0.09), 4), 320);
+}, {passive:false});
+canvas.addEventListener('contextmenu', e=> e.preventDefault());
+
+/* ---------- 预设视角 ---------- */
+const VIEWS = [];
+function view(name, key, pos, look, meta, interior){
+  VIEWS.push({name, key, pos:new T.Vector3(...pos), look:new T.Vector3(...look), meta, interior:!!interior});
+}
+view('鸟瞰全景', '1', [46, 40, 66], [0, 4, 6], '俯瞰整栋建筑与海岸线');
+view('海上远眺', '2', [0, 14, 74], [0, 8, 4], '从海面回望别墅正面');
+view('客厅', '3', [8.5, 5.6, -16.4], [-9, 3.9, 5], '挑高 7.2 m · 全落地玻璃', true);
+view('泳池露台', '4', [0, 5.5, 40], [0, 3.0, 18], '25 m 无边际泳池');
+bedRooms.forEach((b, idx)=>{
+  view(b.name, idx < 3 ? String(5+idx) : '', [b.cx-3.55, FL+1.68, BED_Z+3.15], [b.cx+0.7, FL+1.16, BED_Z-3.1], '海景套房 · 72 m²', true);
+});
+view('主卧套间', '8', [5.6, FL+9.1, -14.2], [-2.2, FL+8.6, -5.2], '二层主卧 · 95 m²', true);
+view('卫浴空间', '9', [-28.8, FL+1.72, 3.0], [-32.3, FL+1.12, 9.0], '独立浴缸 · 整面海景', true);
+
+function goView(v, instant){
+  rig.auto = false;
+  roofHidden = !v.interior; applyRoofState();
+  rig.tFov = v.interior ? 62 : 46;
+  rig.tTarget.copy(v.look);
+  const d = new T.Vector3().subVectors(v.pos, v.look);
+  rig.tRadius = d.length();
+  rig.tPhi = Math.acos(Math.min(Math.max(d.y/rig.tRadius, -1), 1));
+  rig.tTheta = Math.atan2(d.z, d.x);
+  // 最短路径旋转
+  while(rig.tTheta - rig.theta > Math.PI) rig.tTheta -= Math.PI*2;
+  while(rig.tTheta - rig.theta < -Math.PI) rig.tTheta += Math.PI*2;
+  if(instant){ rig.target.copy(rig.tTarget); rig.radius = rig.tRadius;
+    rig.phi = rig.tPhi; rig.theta = rig.tTheta; applyRig(); }
+}
+
+/* ---------- UI ---------- */
+const roomList = document.getElementById('rooms');
+const right = document.getElementById('right');
+
+function rowsFor(kind){
+  if(kind === 'bed'){
+    return [
+      ['建筑面积', '72 m²（套间）'],
+      ['床', '1.8 × 2.1 m 定制床架'],
+      ['衣柜', '2.6 m 双开 · 胡桃木'],
+      ['卫浴', '独立 4 件套 + 双台盆'],
+      ['视野', '正海 · 落地玻璃 8.6 m'],
+      ['地面', '橡木实木 · 密缝铺装'],
+    ];
+  }
+  if(kind === 'living') return [
+    ['建筑面积', '260 m²'], ['层高', '7.2 m 挑空'],
+    ['主灯', '黄铜定制吊灯 ×3'], ['地面', '大理石通铺'],
+    ['家私', '8 人座沙发组 + 长餐桌'],
+  ];
+  if(kind === 'master') return [
+    ['建筑面积', '95 m²'], ['床', '2.5 × 2.8 m King'],
+    ['配置', '独立衣帽间 + 露台'], ['视野', '双层海景'],
+  ];
+  if(kind === 'bath') return [
+    ['建筑面积', '42 m²'], ['浴缸', '独立石质 1.7 m'],
+    ['淋浴', '玻璃屏 + 顶喷'], ['台盆', '双人位 + 防雾镜'],
+    ['地面', '大理石 · 通铺'], ['视野', '正海 · 整面玻璃'],
+  ];
+  if(kind === 'pool') return [
+    ['泳池', '25 × 6 m'], ['水深', '1.4 m'],
+    ['收边', '无边溢流 · 石材包边'], ['家具', '躺椅 ×4'],
+  ];
+  return [];
+}
+
+function showInfo(title, meta, kind){
+  document.getElementById('rName').textContent = title;
+  document.getElementById('rMeta').textContent = meta;
+  const kv = document.getElementById('rKv');
+  kv.innerHTML = rowsFor(kind).map(([k,v])=>`<div class="kv"><span>${k}</span><span>${v}</span></div>`).join('');
+  right.classList.add('show');
+}
+
+// 房间按钮
+const extraViews = [
+  {label:'客厅 · 餐厅', view:'3', kind:'living', meta:'挑高 7.2 m'},
+  {label:'泳池 · 露台', view:'4', kind:'pool', meta:'25 m 无边际'},
+  {label:'主卧套间', view:'8', kind:'master', meta:'二层 · 95 m²'},
+  {label:'卫浴空间', view:'9', kind:'bath', meta:'独立浴缸 · 海景'},
+];
+bedRooms.forEach((b, idx)=>{
+  const el = document.createElement('div');
+  el.className = 'room';
+  el.innerHTML = `<span>${b.name}</span><i>72 m² · 海景</i>`;
+  el.onclick = ()=>{
+    document.querySelectorAll('.room').forEach(n=>n.classList.remove('on'));
+    el.classList.add('on');
+    goView(VIEWS.find(v=>v.name===b.name));
+    showInfo(b.name, '一层 · 朝海套房', 'bed');
+  };
+  roomList.appendChild(el);
+});
+extraViews.forEach(v=>{
+  const el = document.createElement('div');
+  el.className = 'room';
+  el.innerHTML = `<span>${v.label}</span><i>${v.meta}</i>`;
+  el.onclick = ()=>{
+    document.querySelectorAll('.room').forEach(n=>n.classList.remove('on'));
+    el.classList.add('on');
+    goView(VIEWS.find(x=>x.key===v.view));
+    showInfo(v.label.replace(' · ',''), v.meta, v.kind);
+  };
+  roomList.appendChild(el);
+});
+
+// 视角按钮
+const viewBar = document.createElement('div');
+document.getElementById('left').appendChild(viewBar);
+
+// 开关
+let roofHidden = true;
+document.getElementById('btnRoof').onclick = (e)=>{
+  roofHidden = !roofHidden;
+  roofs.forEach(m=>{ m.visible = !roofHidden; });
+  e.currentTarget.classList.toggle('on', roofHidden);
+  e.currentTarget.textContent = roofHidden ? '隐藏屋顶' : '显示屋顶';
+};
+document.getElementById('btnLabels').onclick = (e)=>{
+  labelGroup.visible = !labelGroup.visible;
+  e.currentTarget.classList.toggle('on', labelGroup.visible);
+};
+document.getElementById('btnPlan').onclick = ()=> goView(VIEWS[0]);
+
+/* ---------- 光照方案：日 / 黄昏 / 夜 ---------- */
+const MOODS = {
+  day:  {sunC:0xfff1d8, sunI:3.1, hemiI:0.85, top:0x2f6fa8, mid:0x8fc4d8, bot:0xf3e7d3,
+         exp:1.02, seaD:0x0d3f52, seaS:0x2b8ea0, room:2.4},
+  dusk: {sunC:0xff9b5a, sunI:2.4, hemiI:0.55, top:0x22376b, mid:0xd98a5f, bot:0xf7d9b0,
+         exp:1.06, seaD:0x122a42, seaS:0x3f6f86, room:3.4},
+  night:{sunC:0x9fc0ff, sunI:0.55, hemiI:0.20, top:0x050a16, mid:0x0c1a2e, bot:0x16283a,
+         exp:1.16, seaD:0x04121c, seaS:0x0b3a4a, room:5.2},
+};
+function applyMood(name){
+  const m = MOODS[name] || MOODS.day;
+  sun.color.setHex(m.sunC); sun.intensity = m.sunI;
+  hemi.intensity = m.hemiI;
+  renderer.toneMappingExposure = m.exp;
+  skyMat.uniforms.top.value.setHex(m.top);
+  skyMat.uniforms.mid.value.setHex(m.mid);
+  skyMat.uniforms.bot.value.setHex(m.bot);
+  seaUniforms.uDeep.value.setHex(m.seaD);
+  seaUniforms.uShallow.value.setHex(m.seaS);
+  roomLights.forEach(l=>{ l.intensity = m.room; });
+  document.querySelectorAll('.mood').forEach(b=> b.classList.toggle('on', b.dataset.mood === name));
+}
+const moodBar = document.createElement('div');
+moodBar.className = 'toggles';
+moodBar.style.marginTop = '6px';
+moodBar.innerHTML = '<button class="t mood on" data-mood="day">午后</button>' +
+                    '<button class="t mood" data-mood="dusk">黄昏</button>' +
+                    '<button class="t mood" data-mood="night">夜景</button>';
+document.getElementById('left').appendChild(moodBar);
+moodBar.querySelectorAll('.mood').forEach(b=> b.onclick = ()=> applyMood(b.dataset.mood));
+applyMood('day');
+
+// 键盘
+addEventListener('keydown', e=>{
+  const v = VIEWS.find(x=>x.key === e.key);
+  if(v){ goView(v); }
+  if(e.key === 'r' || e.key === 'R') document.getElementById('btnRoof').click();
+});
+
+/* ---------- 标签需要等床位就绪 ---------- */
+bedRooms.forEach(b=>{
+  makeLabel(b.name, '72 m² 海景套房', b.cx, FL+4.6, BED_Z-1.5);
+});
+makeLabel('客厅', '260 m² · 挑高 7.2 m', -6, FL+8.2, -10);
+makeLabel('泳池', '25 × 6 m', 0, FL+1.4, 22);
+makeLabel('卫浴', '42 m² · 海景浴缸', -31, FL+4.5, 6);
+
+/* ---------- 主卧顶盖收集（用于隐藏） ---------- */
+const suiteRoofs = [];
+villa.traverse(o=>{
+  if(o.isMesh && o.geometry && o.geometry.parameters &&
+     o.geometry.parameters.height === 0.22 &&
+     Math.abs(o.position.y - 3.72) < 0.01 && o.parent && o.parent.position.y === FL){
+    suiteRoofs.push(o);
+  }
+});
+
+/* ---------- 启动 ---------- */
+function applyRoofState(){
+  roofs.forEach(m=>{ m.visible = !roofHidden; });
+  const b = document.getElementById('btnRoof');
+  b.classList.toggle('on', roofHidden);
+  b.textContent = roofHidden ? '隐藏屋顶' : '显示屋顶';
+}
+applyRoofState();
+goView(VIEWS[0], true);
+
+// 用 hash 直达视角，方便分享与截图：#bed1 #bed6 #living #pool #top #sea #master
+const HASH = {
+  top:'1', sea:'2', living:'3', pool:'4', master:'8', bath:'9',
+  bed1:'5', bed2:'6', bed3:'7'
+};
+function navHash(){
+  const h = (location.hash||'').replace('#','').toLowerCase();
+  if(!h) return;
+  if(['day','dusk','night'].includes(h)){ applyMood(h); if(typeof goView==='function') goView(VIEWS[0], true); return; }
+  let v = VIEWS.find(x=>x.key === HASH[h]);
+  if(h.startsWith('bed')){
+    const i = parseInt(h.slice(3), 10) - 1;
+    if(bedRooms[i]) v = VIEWS.find(x=>x.name === bedRooms[i].name);
+  }
+  if(v){
+    goView(v, true);
+    showInfo(v.name, v.meta, h==='living' ? 'living' : h==='pool' ? 'pool' : h==='master' ? 'master' : h==='bath' ? 'bath' : 'bed');
+  }
+}
+addEventListener('hashchange', navHash);
+navHash();
+
+document.getElementById('loading').classList.add('hide');
+
+addEventListener('resize', ()=>{
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+const clock = new T.Clock();
+function animate(){
+  requestAnimationFrame(animate);
+  const t = clock.getElapsedTime();
+  seaUniforms.uTime.value = t;
+
+  // 相机平滑
+  rig.target.lerp(rig.tTarget, rig.smoothing);
+  rig.radius = ease(rig.radius, rig.tRadius, rig.smoothing);
+  rig.theta = ease(rig.theta, rig.tTheta, rig.smoothing);
+  rig.phi = ease(rig.phi, rig.tPhi, rig.smoothing);
+  rig.fov = ease(rig.fov, rig.tFov, rig.smoothing);
+  if(Math.abs(camera.fov - rig.fov) > 0.01){ camera.fov = rig.fov; camera.updateProjectionMatrix(); }
+  if(rig.auto){
+    rig.tTheta += 0.00035;
+  }
+  applyRig();
+
+  // 泳池水面轻微起伏
+  poolWater.position.y = 0.16 + Math.sin(t*1.4)*0.012;
+
+  renderer.render(scene, camera);
+}
+animate();
+</script>
+</body>
+</html>
+
